@@ -10,6 +10,7 @@ jobs:
     steps:
       - name: Trigger Generic System Release
         uses: actions/github-script@v4
+        id: trigger-release
         with:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           script: |
@@ -42,10 +43,42 @@ jobs:
       - name: Run Smoke Tests
         run: echo "Running smoke tests..." && npm run test
 
+      # Añadimos la espera justo antes de los curl tests
+      - name: Wait for Generic System Release to finish
+        uses: actions/github-script@v4
+        with:
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          script: |
+            const workflow_id = ${{ steps.trigger-release.outputs.workflow_id }};
+            let completed = false;
+            let attempts = 0;
+            const max_attempts = 60; // Número máximo de intentos (espera ~10 minutos)
+
+            // Polling loop para esperar a que el workflow termine
+            while (!completed && attempts < max_attempts) {
+              const run = await github.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflow_id,
+                status: 'in_progress',
+              });
+
+              if (run.data.total_count === 0) {
+                completed = true;
+              } else {
+                console.log('Generic System Release Stage sigue en ejecución, esperando...');
+                await new Promise(r => setTimeout(r, 10000)); // Esperar 10 segundos antes de reintentar
+              }
+              attempts++;
+            }
+
+            if (!completed) {
+              throw new Error('Timeout: Generic System Release Stage no terminó a tiempo.');
+            }
+
       - name: Run Curl Tests
         run: |
           echo "Checking if Task Manager is up..."
           curl -f http://${{ secrets.VM_IP }}:3001/health || exit 1
           echo "Checking if Title Generator is up..."
           curl -f http://${{ secrets.VM_IP }}:3002/health || exit 1
-
