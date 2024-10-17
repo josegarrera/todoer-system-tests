@@ -43,18 +43,28 @@ jobs:
       - name: Run Smoke Tests
         run: echo "Running smoke tests..." && npm run test
 
-      # Añadimos la espera justo antes de los curl tests
       - name: Wait for Generic System Release to finish
         uses: actions/github-script@v4
         with:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           script: |
-            const workflow_id = ${{ steps.trigger-release.outputs.workflow_id }};
+            const workflow = 'Generic System Release Stage';
+            const response = await github.actions.listRepoWorkflows({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+
+            const workflow_id = response.data.workflows.find(w => w.name === workflow)?.id;
+
+            if (!workflow_id) {
+              throw new Error(`No workflow found with name: ${workflow}`);
+            }
+
             let completed = false;
             let attempts = 0;
-            const max_attempts = 60; // Número máximo de intentos (espera ~10 minutos)
+            const max_attempts = 60;
 
-            // Polling loop para esperar a que el workflow termine
             while (!completed && attempts < max_attempts) {
               const run = await github.actions.listWorkflowRuns({
                 owner: context.repo.owner,
@@ -66,14 +76,14 @@ jobs:
               if (run.data.total_count === 0) {
                 completed = true;
               } else {
-                console.log('Generic System Release Stage sigue en ejecución, esperando...');
-                await new Promise(r => setTimeout(r, 10000)); // Esperar 10 segundos antes de reintentar
+                console.log('Generic System Release Stage still in progress, waiting...');
+                await new Promise(r => setTimeout(r, 10000));
               }
               attempts++;
             }
 
             if (!completed) {
-              throw new Error('Timeout: Generic System Release Stage no terminó a tiempo.');
+              throw new Error('Timeout: Generic System Release Stage did not complete in time');
             }
 
       - name: Run Curl Tests
