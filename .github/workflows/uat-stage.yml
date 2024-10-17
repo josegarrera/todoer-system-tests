@@ -14,11 +14,23 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const workflow = 'Generic System Release Stage';
-            const workflow_id = await github.actions.listRepoWorkflows({
+            const response = await github.actions.listRepoWorkflows({
               owner: context.repo.owner,
               repo: context.repo.repo,
               per_page: 100,
-            }).then(res => res.data.find(w => w.name === workflow).id);
+            });
+
+            // Mostrar el resultado completo para depuración
+            console.log('Response data:', response);
+
+            // Obtener el ID del workflow
+            const workflow_id = response.data.workflows.find(w => w.name === workflow)?.id;
+
+            if (!workflow_id) {
+              throw new Error(`No workflow found with name: ${workflow}`);
+            }
+
+            // Desencadenar el workflow
             await github.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -26,6 +38,6 @@ jobs:
               ref: context.ref,
             });
 
-      - name: Run Smoke Tests (Optional)
+      - name: Run Smoke Tests
         run: echo "Running smoke tests..." && npm run test
 
