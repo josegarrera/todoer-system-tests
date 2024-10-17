@@ -1,0 +1,31 @@
+name: UAT Stage
+
+on:
+  workflow_dispatch:
+
+jobs:
+  uat-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Generic System Release
+        uses: actions/github-script@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const workflow = 'Generic System Release Stage';
+            const workflow_id = await github.actions.listRepoWorkflows({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            }).then(res => res.data.find(w => w.name === workflow).id);
+            await github.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: workflow_id,
+              ref: context.ref,
+            });
+
+      - name: Run Smoke Tests (Optional)
+        run: echo "Running smoke tests..." && npm run test
+
