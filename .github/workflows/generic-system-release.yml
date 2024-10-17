@@ -33,9 +33,14 @@ jobs:
             docker rm ${{ matrix.service }} || true
             docker pull ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:${{ steps.get-latest-tag.outputs.LATEST_TAG }}
             if [ "${{ matrix.service }}" = "fe" ]; then
-              docker run -d --name fe -p 80:80 -e VITE_API_URL="${{ secrets.VM_IP }}" ${{ secrets.DOCKER_USERNAME }}/fe:${{ steps.get-latest-tag.outputs.LATEST_TAG }}
+              docker run -d --name fe -p 80:80 \
+                -e VITE_API_URL="${{ secrets.VM_IP }}" \
+                ${{ secrets.DOCKER_USERNAME }}/fe:${{ steps.get-latest-tag.outputs.LATEST_TAG }}
             elif [ "${{ matrix.service }}" = "task-manager" ]; then
-              docker run -d --name task-manager -p 3001:3001 -e MONGO_URI="${{ secrets.MONGO_URI }}" ${{ secrets.DOCKER_USERNAME }}/task-manager:${{ steps.get-latest-tag.outputs.LATEST_TAG }}
+              docker run -d --name task-manager -p 3001:3001 \
+                -e MONGO_URI="${{ secrets.MONGO_URI }}" \
+                ${{ secrets.DOCKER_USERNAME }}/task-manager:${{ steps.get-latest-tag.outputs.LATEST_TAG }}
             else
-              docker run -d --name title-generator -p 3002:3002 ${{ secrets.DOCKER_USERNAME }}/title-generator:${{ steps.get-latest-tag.outputs.LATEST_TAG }}
+              docker run -d --name title-generator -p 3002:3002 \
+                ${{ secrets.DOCKER_USERNAME }}/title-generator:${{ steps.get-latest-tag.outputs.LATEST_TAG }}
             fi
