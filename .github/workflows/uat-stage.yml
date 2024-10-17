@@ -11,7 +11,7 @@ jobs:
       - name: Trigger Generic System Release
         uses: actions/github-script@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           script: |
             const workflow = 'Generic System Release Stage';
             const response = await github.actions.listRepoWorkflows({
