@@ -20,17 +20,12 @@ jobs:
               per_page: 100,
             });
 
-            // Mostrar el resultado completo para depuración
-            console.log('Response data:', response);
-
-            // Obtener el ID del workflow
             const workflow_id = response.data.workflows.find(w => w.name === workflow)?.id;
 
             if (!workflow_id) {
               throw new Error(`No workflow found with name: ${workflow}`);
             }
 
-            // Desencadenar el workflow
             await github.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -38,6 +33,19 @@ jobs:
               ref: context.ref,
             });
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
+
       - name: Run Smoke Tests
         run: echo "Running smoke tests..." && npm run test
+
+      - name: Run Curl Tests
+        run: |
+          echo "Checking if Task Manager is up..."
+          curl -f http://${{ secrets.VM_IP }}:3001/health || exit 1
+          echo "Checking if Title Generator is up..."
+          curl -f http://${{ secrets.VM_IP }}:3002/health || exit 1
 
