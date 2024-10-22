@@ -41,7 +41,7 @@ jobs:
         run: npm install
 
       - name: Run Smoke Tests
-        run: echo "Running smoke tests..." && npm run test
+        run: echo "Running smoke tests..." && npm run test:smoke
 
       - name: Wait for Generic System Release to finish
         uses: actions/github-script@v4
