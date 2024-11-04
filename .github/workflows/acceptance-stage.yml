@@ -10,42 +10,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check if docker images have been updated recently
+      - name: Check if Docker Images have Updated Recently
         id: check-images
         run: |
-          IMAGES=("${{ secrets.DOCKER_USERNAME }}/fe" "${{ secrets.DOCKER_USERNAME }}/task-manager" "${{ secrets.DOCKER_USERNAME }}/title-generator")
+          IMAGES=("your_dockerhub_username/fe" "your_dockerhub_username/task-manager" "your_dockerhub_username/title-generator")
 
+          # Obtener el tiempo actual en formato Unix (epoch)
           CURRENT_TIME=$(date +%s)
           IMAGES_UPDATED=false
 
           for IMAGE in "${IMAGES[@]}"; do
+            # Obtener la marca de tiempo de la última actualización de la imagen
             LAST_UPDATED=$(curl -s "https://hub.docker.com/v2/repositories/$IMAGE/tags" | jq -r '.results[0].last_updated')
             LAST_UPDATED_EPOCH=$(date -d "$LAST_UPDATED" +%s)
 
+            # Calcular la diferencia en minutos
             DIFF_MINUTES=$(( (CURRENT_TIME - LAST_UPDATED_EPOCH) / 60 ))
 
             echo "$IMAGE was last updated $DIFF_MINUTES minutes ago."
 
+            # Verificar si la imagen se actualizó en los últimos 5 minutos
             if [ "$DIFF_MINUTES" -le 5 ]; then
               IMAGES_UPDATED=true
               echo "$IMAGE was updated within the last 5 minutes."
-              break
+              break  # Salir del ciclo si se encuentra una imagen actualizada
             fi
           done
 
           echo "IMAGES_UPDATED=$IMAGES_UPDATED" >> $GITHUB_ENV
 
-      - name: Stop Workflow if No Images Have Updated Recently
-        if: env.IMAGES_UPDATED == 'false'
-        run: |
-          echo "No Docker images were updated recently. Stopping workflow."
-          exit 0
-
       - name: Log No Update Found
         if: env.IMAGES_UPDATED == 'false'
         run: echo "Workflow checked for updates but found no recent image updates."
 
+      - name: Stop Workflow if No Images Have Updated Recently
+        if: env.IMAGES_UPDATED == 'false'
+        run: exit 0
+
       - name: Trigger Generic System Release
+        if: env.IMAGES_UPDATED == 'true'
         uses: actions/github-script@v4
         id: trigger-release
         with:
@@ -75,15 +78,19 @@ jobs:
             });
 
       - name: Checkout repository
+        if: env.IMAGES_UPDATED == 'true'
         uses: actions/checkout@v4
 
       - name: Install dependencies
+        if: env.IMAGES_UPDATED == 'true'
         run: npm install
 
       - name: Run Smoke Tests
+        if: env.IMAGES_UPDATED == 'true'
         run: echo "Running smoke tests..." && npm run test:smoke
 
       - name: Wait for Generic System Release to finish
+        if: env.IMAGES_UPDATED == 'true'
         uses: actions/github-script@v4
         with:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -127,9 +134,11 @@ jobs:
             }
 
       - name: Run Acceptance Tests
+        if: env.IMAGES_UPDATED == 'true'
         run: echo "Running acceptance tests..." && npm run test:acceptance
 
       - name: Run Curl Tests
+        if: env.IMAGES_UPDATED == 'true'
         run: |
           echo "Checking if Task Manager is up..."
           curl -f http://${{ secrets.ACCEPTANCE_VM_IP }}:3001/health || exit 1
