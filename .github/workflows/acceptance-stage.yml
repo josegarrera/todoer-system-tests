@@ -13,7 +13,7 @@ jobs:
       - name: Check if Docker Images have Updated Recently
         id: check-images
         run: |
-          IMAGES=("your_dockerhub_username/fe" "your_dockerhub_username/task-manager" "your_dockerhub_username/title-generator")
+          IMAGES=("${{ secrets.DOCKER_USERNAME }}/fe" "${{ secrets.DOCKER_USERNAME }}/task-manager" "${{ secrets.DOCKER_USERNAME }}/title-generator")
 
           # Obtener el tiempo actual en formato Unix (epoch)
           CURRENT_TIME=$(date +%s)
