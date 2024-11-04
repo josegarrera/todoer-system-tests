@@ -1,10 +1,10 @@
-name: UAT Stage
+name: Production Stage
 
 on:
   workflow_dispatch:
 
 jobs:
-  uat-release:
+  prod-release:
     runs-on: ubuntu-latest
 
     steps:
@@ -33,7 +33,7 @@ jobs:
               workflow_id: workflow_id,
               ref: context.ref,
               inputs: {
-                environment: 'uat'
+                environment: 'prod'
               }
             });
 
@@ -92,6 +92,6 @@ jobs:
       - name: Run Curl Tests
         run: |
           echo "Checking if Task Manager is up..."
-          curl -f http://${{ secrets.UAT_VM_IP }}:3001/health || exit 1
+          curl -f http://${{ secrets.PROD_VM_IP }}:3001/health || exit 1
           echo "Checking if Title Generator is up..."
-          curl -f http://${{ secrets.UAT_VM_IP }}:3002/health || exit 1
+          curl -f http://${{ secrets.PROD_VM_IP }}:3002/health || exit 1

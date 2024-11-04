@@ -2,6 +2,11 @@ name: Generic System Release Stage
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy (acceptance, e2e, uat, prod)'
+        required: true
+        default: 'acceptance'
 
 jobs:
   release:
@@ -12,6 +17,31 @@ jobs:
         service: [fe, task-manager, title-generator]
 
     steps:
+      - name: Set Environment Variables
+        id: set-env
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "acceptance" ]; then
+            echo "VM_IP=${{ secrets.ACCEPTANCE_VM_IP }}" >> $GITHUB_ENV
+            echo "GCP_SSH_PRIVATE_KEY=${{ secrets.ACCEPTANCE_GCP_SSH_PRIVATE_KEY }}" >> $GITHUB_ENV
+            echo "API_URL=https://acceptance-api.example.com" >> $GITHUB_ENV
+            echo "DB_URI=${{ secrets.ACCEPTANCE_DB_URI }}" >> $GITHUB_ENV
+          elif [ "${{ github.event.inputs.environment }}" = "e2e" ]; then
+            echo "VM_IP=${{ secrets.E2E_VM_IP }}" >> $GITHUB_ENV
+            echo "GCP_SSH_PRIVATE_KEY=${{ secrets.E2E_GCP_SSH_PRIVATE_KEY }}" >> $GITHUB_ENV
+            echo "API_URL=https://e2e-api.example.com" >> $GITHUB_ENV
+            echo "DB_URI=${{ secrets.E2E_DB_URI }}" >> $GITHUB_ENV
+          elif [ "${{ github.event.inputs.environment }}" = "uat" ]; then
+            echo "VM_IP=${{ secrets.UAT_VM_IP }}" >> $GITHUB_ENV
+            echo "GCP_SSH_PRIVATE_KEY=${{ secrets.UAT_GCP_SSH_PRIVATE_KEY }}" >> $GITHUB_ENV
+            echo "API_URL=https://uat-api.example.com" >> $GITHUB_ENV
+            echo "DB_URI=${{ secrets.UAT_DB_URI }}" >> $GITHUB_ENV
+          else
+            echo "VM_IP=${{ secrets.PROD_VM_IP }}" >> $GITHUB_ENV
+            echo "GCP_SSH_PRIVATE_KEY=${{ secrets.PROD_GCP_SSH_PRIVATE_KEY }}" >> $GITHUB_ENV
+            echo "API_URL=https://prod-api.example.com" >> $GITHUB_ENV
+            echo "DB_URI=${{ secrets.PROD_DB_URI }}" >> $GITHUB_ENV
+          fi
+
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
@@ -25,22 +55,25 @@ jobs:
       - name: SSH and Deploy to GCP VM
         uses: appleboy/ssh-action@v0.1.3
         with:
-          host: ${{ secrets.VM_IP }}
+          host: ${{ env.VM_IP }}
           username: ${{ secrets.DOCKER_USERNAME }}
-          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          key: ${{ env.GCP_SSH_PRIVATE_KEY }}
           script: |
             docker stop ${{ matrix.service }} || true
             docker rm ${{ matrix.service }} || true
             docker pull ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:${{ steps.get-latest-tag.outputs.LATEST_TAG }}
             if [ "${{ matrix.service }}" = "fe" ]; then
               docker run -d --name fe -p 80:80 \
-                -e VITE_API_URL="${{ secrets.VM_IP }}" \
+                -e VITE_API_URL="$API_URL" \
+                -e ENVIRONMENT="${{ github.event.inputs.environment }}" \
                 ${{ secrets.DOCKER_USERNAME }}/fe:${{ steps.get-latest-tag.outputs.LATEST_TAG }}
             elif [ "${{ matrix.service }}" = "task-manager" ]; then
               docker run -d --name task-manager -p 3001:3001 \
-                -e MONGO_URI="${{ secrets.MONGO_URI }}" \
+                -e MONGO_URI="$DB_URI" \
+                -e ENVIRONMENT="${{ github.event.inputs.environment }}" \
                 ${{ secrets.DOCKER_USERNAME }}/task-manager:${{ steps.get-latest-tag.outputs.LATEST_TAG }}
             else
               docker run -d --name title-generator -p 3002:3002 \
+                -e ENVIRONMENT="${{ github.event.inputs.environment }}" \
                 ${{ secrets.DOCKER_USERNAME }}/title-generator:${{ steps.get-latest-tag.outputs.LATEST_TAG }}
             fi
