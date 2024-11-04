@@ -2,12 +2,43 @@ name: Acceptance Stage
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
 
 jobs:
   acceptance-release:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check if docker images have been updated recently
+        id: check-images
+        run: |
+          IMAGES=("${{ secrets.DOCKER_USERNAME }}/fe" "${{ secrets.DOCKER_USERNAME }}/task-manager" "${{ secrets.DOCKER_USERNAME }}/title-generator")
+
+          CURRENT_TIME=$(date +%s)
+          IMAGES_UPDATED=false
+
+          for IMAGE in "${IMAGES[@]}"; do
+            LAST_UPDATED=$(curl -s "https://hub.docker.com/v2/repositories/$IMAGE/tags" | jq -r '.results[0].last_updated')
+            LAST_UPDATED_EPOCH=$(date -d "$LAST_UPDATED" +%s)
+
+            DIFF_MINUTES=$(( (CURRENT_TIME - LAST_UPDATED_EPOCH) / 60 ))
+
+            echo "$IMAGE was last updated $DIFF_MINUTES minutes ago."
+
+            if [ "$DIFF_MINUTES" -le 5 ]; then
+              IMAGES_UPDATED=true
+              echo "$IMAGE was updated within the last 5 minutes."
+              break
+            fi
+          done
+
+          echo "IMAGES_UPDATED=$IMAGES_UPDATED" >> $GITHUB_ENV
+
+      - name: Stop Workflow if No Images Have Updated Recently
+        if: env.IMAGES_UPDATED == 'false'
+        run: echo "No Docker images were updated recently. Stopping workflow." && exit 0
+
       - name: Trigger Generic System Release
         uses: actions/github-script@v4
         id: trigger-release
