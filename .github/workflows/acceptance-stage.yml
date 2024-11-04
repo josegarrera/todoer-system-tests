@@ -37,7 +37,13 @@ jobs:
 
       - name: Stop Workflow if No Images Have Updated Recently
         if: env.IMAGES_UPDATED == 'false'
-        run: echo "No Docker images were updated recently. Stopping workflow." && exit 0
+        run: |
+          echo "No Docker images were updated recently. Stopping workflow."
+          exit 0
+
+      - name: Log No Update Found
+        if: env.IMAGES_UPDATED == 'false'
+        run: echo "Workflow checked for updates but found no recent image updates."
 
       - name: Trigger Generic System Release
         uses: actions/github-script@v4
