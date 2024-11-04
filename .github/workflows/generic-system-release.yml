@@ -34,18 +34,17 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           key: ${{ github.event.inputs.environment == 'acceptance' && secrets.ACCEPTANCE_GCP_SSH_PRIVATE_KEY || github.event.inputs.environment == 'e2e' && secrets.E2E_GCP_SSH_PRIVATE_KEY || github.event.inputs.environment == 'uat' && secrets.UAT_GCP_SSH_PRIVATE_KEY || github.event.inputs.environment == 'prod' && secrets.PROD_GCP_SSH_PRIVATE_KEY }}
           script: |
-            # Definir variables según el entorno
             if [ "${{ github.event.inputs.environment }}" = "acceptance" ]; then
-              API_URL="https://acceptance-api.example.com"
+              API_URL="${{ secrets.ACCEPTANCE_VM_IP }}"
               DB_URI="${{ secrets.ACCEPTANCE_DB_URI }}"
             elif [ "${{ github.event.inputs.environment }}" = "e2e" ]; then
-              API_URL="https://e2e-api.example.com"
+              API_URL="${{ secrets.E2E_VM_IP }}"
               DB_URI="${{ secrets.E2E_DB_URI }}"
             elif [ "${{ github.event.inputs.environment }}" = "uat" ]; then
-              API_URL="https://uat-api.example.com"
+              API_URL="${{ secrets.UAT_VM_IP }}"
               DB_URI="${{ secrets.UAT_DB_URI }}"
             else
-              API_URL="https://prod-api.example.com"
+              API_URL="${{ secrets.PROD_VM_IP }}"
               DB_URI="${{ secrets.PROD_DB_URI }}"
             fi
 
